@@ -1,6 +1,5 @@
-// Standardized response function
-
 import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService } from "../models/userModel.js";
+import bcrypt from "bcrypt"
 
 const handleResponse = (res, status, message, data = null) => {
     res.status(status).json({
@@ -11,9 +10,10 @@ const handleResponse = (res, status, message, data = null) => {
 }
 
 export const createUser = async (req, res, next) => {
-    const {name, email} = req.body;
+    const {name, email, role, password} = req.body;
+    const hasedPassword = await bcrypt.hash(password, 10)
     try{
-        const newUser = await createUserService(name, email);
+        const newUser = await createUserService(name, email, hasedPassword, role);
         handleResponse(res, 201, "User created successfully", newUser)
     }catch(err){
         next(err);
@@ -39,10 +39,20 @@ export const getUserById = async (req, res, next) => {
     }
 }
 
-export const updateUser = async (req, res, next) => {
-    const {name, email} = req.body;
+export const getUserByEmail = async (req, res, next) => {
     try{
-        const updatedUser = await updateUserService(name, email, req.params.id);
+        const user = await getUserByEmail(req.params.email);
+        if(!user) return handleResponse(res, 404, "User with this email not found");
+        handleResponse(res, 200, "User fetched successfully", user)
+    }catch(err){
+        next(err);
+    }
+}
+
+export const updateUser = async (req, res, next) => {
+    const {name, email, role} = req.body;
+    try{
+        const updatedUser = await updateUserService(name, email, role, req.params.id);
         if(!updatedUser) return handleResponse(res, 404, "User not found");
         handleResponse(res, 200, "User updated successfully", updatedUser)
     }catch(err){
@@ -51,7 +61,6 @@ export const updateUser = async (req, res, next) => {
 }
 
 export const deleteUser = async (req, res, next) => {
-    const {name, email} = req.body;
     try{
         const deletedUser = await deleteUserService(req.params.id);
         if(!deletedUser) return handleResponse(res, 404, "User not found");
@@ -60,3 +69,7 @@ export const deleteUser = async (req, res, next) => {
         next(err);
     }
 }
+
+export const checkPassword = async (enteredPassword, hashedPassword) => {
+    return await bcrypt.compare(enteredPassword, hashedPassword);
+};
